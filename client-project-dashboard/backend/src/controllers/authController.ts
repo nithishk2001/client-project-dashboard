@@ -9,10 +9,14 @@ import {
 } from "../lib/jwt";
 
 const REFRESH_COOKIE_NAME = "refreshToken";
+const isProduction = process.env.NODE_ENV === "production";
+
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
+  // The frontend and API use separate Vercel domains in production. Browsers
+  // only send the refresh cookie across those origins with SameSite=None.
+  secure: isProduction,
+  sameSite: isProduction ? ("none" as const) : ("lax" as const),
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 };
 
