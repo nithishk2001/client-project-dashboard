@@ -13,9 +13,40 @@ import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+function isAllowedOrigin(origin: string) {
+  if (origin === frontendUrl) return true;
+
+  // A Vercel preview URL appends a deployment suffix to the project hostname,
+  // e.g. app-abc123.vercel.app. Permit previews only for this same project.
+  try {
+    const configuredUrl = new URL(frontendUrl);
+    const requestUrl = new URL(origin);
+    const vercelSuffix = ".vercel.app";
+
+    if (!configuredUrl.hostname.endsWith(vercelSuffix)) return false;
+
+    const projectHost = configuredUrl.hostname.slice(0, -vercelSuffix.length);
+    return (
+      requestUrl.protocol === configuredUrl.protocol &&
+      requestUrl.hostname.endsWith(vercelSuffix) &&
+      (requestUrl.hostname === configuredUrl.hostname ||
+        requestUrl.hostname.startsWith(`${projectHost}-`))
+    );
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin(origin, callback) {
+      // Requests without an Origin header (health checks, server-to-server)
+      // do not need a browser CORS decision.
+      if (!origin || isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error("Origin is not allowed by CORS"));
+    },
     credentials: true
   })
 );
